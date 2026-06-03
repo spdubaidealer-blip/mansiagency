@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { uploadFile } from "@/lib/upload";
 
-// Auth helper
+// Auth helper (Bypassed - open access)
 function isAdmin(request: NextRequest) {
-  return request.cookies.get("admin_session")?.value === "mansi_admin_logged_in";
+  return true;
 }
 
 // GET /api/orders - Fetch all orders (Admin only)

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// Check admin credentials
+// Check admin credentials (Bypassed)
 function isAdmin(request: NextRequest) {
-  return request.cookies.get("admin_session")?.value === "mansi_admin_logged_in";
+  return true;
 }
 
 // GET /api/settings - Fetch all settings (Public)

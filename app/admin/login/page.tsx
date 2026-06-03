@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
@@ -8,6 +8,13 @@ import { Lock, User, Loader2, Coins, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminLogin() {
+  const router = useRouter();
+
+  // Redirect to admin immediately since login is bypassed
+  useEffect(() => {
+    router.push("/admin");
+  }, [router]);
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

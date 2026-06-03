@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import Link from "next/link";
 import { 
   Coins, 
-  LogOut, 
+  ArrowLeft, 
   ShoppingBag, 
   Settings, 
   Megaphone, 
@@ -52,7 +53,7 @@ interface PaymentSetting {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(true);
   const [activeTab, setActiveTab] = useState<"orders" | "rates" | "settings" | "announcements">("orders");
   const [loading, setLoading] = useState(false);
 
@@ -71,19 +72,10 @@ export default function AdminDashboard() {
   // Settings File Upload States
   const [qrUploadLoading, setQrUploadLoading] = useState<Record<string, boolean>>({});
 
-  // Check authentication
+  // Check authentication (Bypassed - open directly)
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await axios.get("/api/admin/check");
-        setAuthenticated(true);
-      } catch (err) {
-        setAuthenticated(false);
-        router.push("/admin/login");
-      }
-    };
-    checkAuth();
-  }, [router]);
+    setAuthenticated(true);
+  }, []);
 
   // Load all dashboard data if authenticated
   useEffect(() => {
@@ -348,13 +340,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-red-950/30 text-slate-400 hover:text-red-400 border border-slate-700/60 hover:border-red-900/40 text-xs font-bold transition duration-200 cursor-pointer"
+        <Link 
+          href="/"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 border border-slate-700/60 text-xs font-bold transition duration-200 cursor-pointer"
         >
-          <LogOut className="w-4 h-4" />
-          <span>Log Out</span>
-        </button>
+          <ArrowLeft className="w-4 h-4" />
+          <span>Go to Homepage</span>
+        </Link>
       </header>
 
       {/* Main Panel Content */}

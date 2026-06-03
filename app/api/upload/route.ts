@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadFile } from "@/lib/upload";
 
-// Helper to check admin status
+// Helper to check admin status (Bypassed)
 function isAdmin(request: NextRequest) {
-  return request.cookies.get("admin_session")?.value === "mansi_admin_logged_in";
+  return true;
 }
 
 // POST /api/upload - Upload general images (Admin only)
