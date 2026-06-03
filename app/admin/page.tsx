@@ -33,7 +33,7 @@ interface Order {
   screenshotUrl: string | null;
   status: string;
   createdAt: string;
-  userEmail: string | null;
+  userWhatsapp: string | null;
 }
 
 interface RatePackage {
@@ -291,10 +291,10 @@ export default function AdminDashboard() {
       return toast.error("No orders available to export.");
     }
 
-    const headers = ["Order ID", "Customer Gmail", "WhatsApp", "Chamet User ID", "Currency", "Coins Purchased", "Price Paid", "Status", "Date Created"];
+    const headers = ["Order ID", "Customer WhatsApp", "WhatsApp Contact", "Chamet User ID", "Currency", "Coins Purchased", "Price Paid", "Status", "Date Created"];
     const rows = orders.map(order => [
       order.id,
-      order.userEmail || "Guest/Anonymous",
+      order.userWhatsapp ? `+${order.userWhatsapp}` : "Guest/Anonymous",
       `+${order.whatsapp}`,
       order.chametId,
       order.currency,
@@ -517,8 +517,8 @@ export default function AdminDashboard() {
                             <td className="px-6 py-4">
                               <div className="font-extrabold text-white tracking-wide select-all">{order.chametId}</div>
                               <div className="text-slate-400 mt-1 select-all">+{order.whatsapp}</div>
-                              {order.userEmail && (
-                                <div className="text-[10px] text-cyan-400 font-semibold mt-1 select-all">{order.userEmail}</div>
+                              {order.userWhatsapp && (
+                                <div className="text-[10px] text-cyan-400 font-semibold mt-1 select-all">Registered: +{order.userWhatsapp}</div>
                               )}
                             </td>
                             <td className="px-6 py-4">

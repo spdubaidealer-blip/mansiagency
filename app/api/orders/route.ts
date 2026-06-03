@@ -23,19 +23,19 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/orders - Create a new order (Public, requires Gmail OTP verification)
+// POST /api/orders - Create a new order (Public, requires WhatsApp credentials login)
 export async function POST(request: NextRequest) {
   try {
     const userSession = request.cookies.get("user_session")?.value;
     if (!userSession) {
-      return NextResponse.json({ error: "Unauthorized. Please login with Gmail first." }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized. Please log in first." }, { status: 401 });
     }
 
     const verifiedUser = await prisma.user.findUnique({
-      where: { email: userSession },
+      where: { whatsapp: userSession },
     });
-    if (!verifiedUser || !verifiedUser.isVerified) {
-      return NextResponse.json({ error: "Unauthorized. Please request a new OTP." }, { status: 401 });
+    if (!verifiedUser) {
+      return NextResponse.json({ error: "Unauthorized. Session is invalid." }, { status: 401 });
     }
 
     const formData = await request.formData();
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         currency,
         selectedPackageId: parseInt(selectedPackageId),
         screenshotUrl,
-        userEmail: userSession,
+        userWhatsapp: userSession,
         status: "Pending",
       },
     });

@@ -40,13 +40,16 @@ export default function Home() {
   const [activeNav, setActiveNav] = useState("home");
   
   // User Authentication States
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [authEmail, setAuthEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [authLoading, setAuthLoading] = useState(false);
-  const [testMailUrl, setTestMailUrl] = useState<string | null>(null);
+  const [userWhatsapp, setUserWhatsapp] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Auth Form States
+  const [authTab, setAuthTab] = useState<"login" | "signup">("login");
+  const [authName, setAuthName] = useState("");
+  const [authWhatsapp, setAuthWhatsapp] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
   // Checkout Form States
   const [whatsapp, setWhatsapp] = useState("");
@@ -75,6 +78,13 @@ export default function Home() {
     { label: "Fast Delivery", val: "5-15 Mins" }
   ];
 
+  // Auto-fill WhatsApp in checkout form when logged in
+  useEffect(() => {
+    if (userWhatsapp) {
+      setWhatsapp(userWhatsapp);
+    }
+  }, [userWhatsapp]);
+
   // Fetch session, rates, settings, and announcements
   useEffect(() => {
     const fetchData = async () => {
@@ -87,7 +97,8 @@ export default function Home() {
         ]);
         
         if (sessionRes.data.authenticated) {
-          setUserEmail(sessionRes.data.email);
+          setUserWhatsapp(sessionRes.data.whatsapp);
+          setUserName(sessionRes.data.name);
         }
         
         setPackages(ratesRes.data);
@@ -154,48 +165,56 @@ export default function Home() {
     toast.success(`${title} copied to clipboard!`);
   };
 
-  // OTP handlers
-  const handleSendOtp = async (e: React.FormEvent) => {
+  // Auth Submit Handlers
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authEmail.trim()) {
-      return toast.error("Gmail address is required!");
-    }
-    if (!authEmail.trim().toLowerCase().endsWith("@gmail.com")) {
-      return toast.error("Only Gmail (@gmail.com) addresses are allowed!");
+    if (!authWhatsapp.trim() || !authName.trim() || !authPassword.trim()) {
+      return toast.error("All fields are required!");
     }
 
     setAuthLoading(true);
-    setTestMailUrl(null);
     try {
-      const res = await axios.post("/api/auth/send-otp", { email: authEmail });
+      const res = await axios.post("/api/auth/signup", {
+        whatsapp: authWhatsapp,
+        name: authName,
+        password: authPassword
+      });
       toast.success(res.data.message);
-      setOtpSent(true);
-      if (res.data.previewUrl) {
-        setTestMailUrl(res.data.previewUrl);
-      }
+      setUserWhatsapp(res.data.whatsapp);
+      setUserName(res.data.name);
+      
+      // Clear fields
+      setAuthName("");
+      setAuthWhatsapp("");
+      setAuthPassword("");
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to send OTP. Try again.");
+      toast.error(err.response?.data?.error || "Signup failed. Try again.");
     } finally {
       setAuthLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp.trim() || otp.trim().length !== 6) {
-      return toast.error("Please enter a 6-digit OTP code.");
+    if (!authWhatsapp.trim() || !authPassword.trim()) {
+      return toast.error("WhatsApp number and password are required!");
     }
 
     setAuthLoading(true);
     try {
-      const res = await axios.post("/api/auth/verify-otp", { email: authEmail, otp });
-      toast.success("Login successful!");
-      setUserEmail(res.data.email);
-      setOtp("");
-      setOtpSent(false);
-      setTestMailUrl(null);
+      const res = await axios.post("/api/auth/login", {
+        whatsapp: authWhatsapp,
+        password: authPassword
+      });
+      toast.success(res.data.message);
+      setUserWhatsapp(res.data.whatsapp);
+      setUserName(res.data.name);
+
+      // Clear fields
+      setAuthWhatsapp("");
+      setAuthPassword("");
     } catch (err: any) {
-      toast.error(err.response?.data?.error || "OTP verification failed.");
+      toast.error(err.response?.data?.error || "Login failed. Try again.");
     } finally {
       setAuthLoading(false);
     }
@@ -204,7 +223,9 @@ export default function Home() {
   const handleUserLogout = async () => {
     try {
       await axios.post("/api/auth/logout");
-      setUserEmail(null);
+      setUserWhatsapp(null);
+      setUserName(null);
+      setWhatsapp("");
       toast.success("Logged out successfully.");
     } catch (err) {
       toast.error("Logout failed.");
@@ -214,8 +235,8 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!userEmail) {
-      return toast.error("Please log in with Gmail first!");
+    if (!userWhatsapp) {
+      return toast.error("Please log in first!");
     }
     if (!whatsapp.trim()) {
       return toast.error("WhatsApp number is required!");
@@ -236,7 +257,6 @@ export default function Home() {
     formData.append("chametId", chametId);
     formData.append("currency", currency);
     formData.append("selectedPackageId", selectedPackage.id.toString());
-    // screenshotUrl is optional, so we do not append screenshot files
 
     try {
       const res = await axios.post("/api/orders", formData);
@@ -244,7 +264,7 @@ export default function Home() {
       toast.success("Order Placed Successfully!");
       
       // Reset form fields
-      setWhatsapp("");
+      setWhatsapp(userWhatsapp || "");
       setChametId("");
       setSelectedPackage(null);
     } catch (err: any) {
@@ -384,7 +404,7 @@ export default function Home() {
                 <span>Start Top-Up Now</span>
               </a>
               <a 
-                href="https://wa.me/919876543210" 
+                href="https://wa.me/918957309392" 
                 target="_blank" 
                 rel="noreferrer"
                 className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold px-8 py-4 rounded-xl transition duration-200 flex items-center justify-center gap-2"
@@ -496,6 +516,7 @@ export default function Home() {
         </div>
 
         {/* Success message card */}
+        {/* Success message card */}
         {checkingAuth ? (
           <div className="bg-[#0b1021]/50 backdrop-blur-md border border-slate-800/80 rounded-3xl p-10 flex flex-col items-center gap-3 max-w-md mx-auto shadow-2xl">
             <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
@@ -512,9 +533,9 @@ export default function Home() {
               Top-up will complete inside 5-15 minutes.
             </p>
             <div className="bg-slate-950/80 border border-slate-900 rounded-2xl p-4 max-w-sm mx-auto text-left space-y-2.5 text-xs">
-              <div className="flex justify-between"><span className="text-slate-400">Customer Gmail</span><span className="text-white font-bold">{userEmail}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Customer Name</span><span className="text-white font-bold">{userName}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Customer WhatsApp</span><span className="text-white font-bold">+{userWhatsapp}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Chamet User ID</span><span className="text-white font-bold">{orderSuccess.chametId}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">WhatsApp Contact</span><span className="text-white font-bold">+{orderSuccess.whatsapp}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Order Status</span><span className="text-cyan-400 font-bold uppercase">{orderSuccess.status}</span></div>
             </div>
             <button
@@ -524,31 +545,65 @@ export default function Home() {
               Place Another Order
             </button>
           </div>
-        ) : !userEmail ? (
+        ) : !userWhatsapp ? (
+          /* Login and Sign Up Tabbed Card */
           <div className="bg-[#0b1021]/50 backdrop-blur-md border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 max-w-md mx-auto relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 rounded-full blur-2xl pointer-events-none" />
             
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center mx-auto shadow-lg shadow-violet-500/20">
-                <ShieldCheck className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-heading font-black text-white">Gmail Verification</h3>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                Verify your Gmail ID to proceed with your top-up order. Safe, secure, and instant.
-              </p>
+            {/* Tabs */}
+            <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-900 select-none">
+              <button
+                type="button"
+                onClick={() => setAuthTab("login")}
+                className={`flex-1 text-center py-2.5 rounded-lg text-xs font-extrabold transition duration-200 cursor-pointer ${
+                  authTab === "login" 
+                    ? "bg-violet-600 text-white shadow-md" 
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                Sign In (लॉग इन)
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthTab("signup")}
+                className={`flex-1 text-center py-2.5 rounded-lg text-xs font-extrabold transition duration-200 cursor-pointer ${
+                  authTab === "signup" 
+                    ? "bg-violet-600 text-white shadow-md" 
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                Sign Up (रजिस्टर)
+              </button>
             </div>
 
-            {!otpSent ? (
-              <form onSubmit={handleSendOtp} className="space-y-4">
+            {authTab === "login" ? (
+              /* LOGIN FORM */
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="text-center pb-2">
+                  <h3 className="text-lg font-heading font-black text-white">Access Your Account</h3>
+                  <p className="text-slate-400 text-[11px] mt-1">Enter your registered WhatsApp number and password.</p>
+                </div>
                 <div>
-                  <label htmlFor="authEmail" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Gmail Address</label>
+                  <label htmlFor="authWhatsapp" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">WhatsApp Number</label>
                   <input
-                    type="email"
-                    id="authEmail"
-                    placeholder="yourname@gmail.com"
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-sm transition outline-none"
+                    type="tel"
+                    id="authWhatsapp"
+                    placeholder="918957309392"
+                    value={authWhatsapp}
+                    onChange={(e) => setAuthWhatsapp(e.target.value.replace(/[^0-9]/g, ""))}
+                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-xs transition outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="authPassword" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                  <input
+                    type="password"
+                    id="authPassword"
+                    placeholder="••••••••"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-xs transition outline-none"
                     required
                   />
                 </div>
@@ -560,72 +615,70 @@ export default function Home() {
                   {authLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Sending OTP...</span>
+                      <span>SIGNING IN...</span>
                     </>
                   ) : (
-                    <>
-                      <span>Send 6-Digit OTP</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </>
+                    <span>Sign In to Checkout</span>
                   )}
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className="bg-violet-950/20 border border-violet-900/40 rounded-xl p-3 text-[11px] text-violet-300 text-center leading-relaxed">
-                  OTP code has been sent to <span className="font-bold text-white block">{authEmail}</span> Please enter it below.
+              /* SIGNUP FORM */
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="text-center pb-2">
+                  <h3 className="text-lg font-heading font-black text-white">Create New ID</h3>
+                  <p className="text-slate-400 text-[11px] mt-1">Register using WhatsApp and set a password.</p>
                 </div>
-                
                 <div>
-                  <label htmlFor="otp" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">6-Digit OTP Code</label>
+                  <label htmlFor="authName" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Your Name</label>
                   <input
                     type="text"
-                    id="otp"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ""))}
-                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-lg font-mono font-bold tracking-[8px] text-center transition outline-none"
+                    id="authName"
+                    placeholder="Enter full name"
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-xs transition outline-none"
                     required
                   />
                 </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setOtpSent(false)}
-                    className="px-4 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white font-bold text-xs rounded-xl transition duration-200 shrink-0 cursor-pointer"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-850 disabled:to-slate-850 text-white font-extrabold text-xs py-3.5 rounded-xl shadow-lg shadow-violet-600/10 hover:shadow-violet-600/20 border border-violet-500/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
-                  >
-                    {authLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Verifying...</span>
-                      </>
-                    ) : (
-                      <span>Verify & Access Checkout</span>
-                    )}
-                  </button>
+                <div>
+                  <label htmlFor="authWhatsapp" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">WhatsApp Number</label>
+                  <input
+                    type="tel"
+                    id="authWhatsapp"
+                    placeholder="918957309392"
+                    value={authWhatsapp}
+                    onChange={(e) => setAuthWhatsapp(e.target.value.replace(/[^0-9]/g, ""))}
+                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-xs transition outline-none"
+                    required
+                  />
                 </div>
-
-                {testMailUrl && (
-                  <div className="pt-2 text-center">
-                    <a
-                      href={testMailUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[11px] text-cyan-400 hover:text-cyan-300 font-extrabold hover:underline"
-                    >
-                      <span>Open Ethereal Test Inbox ✉️</span>
-                    </a>
-                  </div>
-                )}
+                <div>
+                  <label htmlFor="authPassword" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Set Password</label>
+                  <input
+                    type="password"
+                    id="authPassword"
+                    placeholder="••••••••"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-xs transition outline-none"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-850 disabled:to-slate-850 text-white font-extrabold text-xs py-3.5 rounded-xl shadow-lg shadow-violet-600/10 hover:shadow-violet-600/20 border border-violet-500/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider font-semibold"
+                >
+                  {authLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>CREATING ID...</span>
+                    </>
+                  ) : (
+                    <span>Register & Login</span>
+                  )}
+                </button>
               </form>
             )}
           </div>
@@ -638,14 +691,14 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-slate-300 font-medium">Logged in as:</span>
-                <span className="text-white font-bold">{userEmail}</span>
+                <span className="text-white font-bold">{userName} (+{userWhatsapp})</span>
               </div>
               <button
                 type="button"
                 onClick={handleUserLogout}
                 className="text-violet-400 hover:text-violet-300 font-bold hover:underline cursor-pointer"
               >
-                Change Gmail Account / Logout
+                Change Account / Logout
               </button>
             </div>
 
@@ -733,7 +786,7 @@ export default function Home() {
                     <input
                       type="tel"
                       id="whatsapp"
-                      placeholder="919876543210"
+                      placeholder="918957309392"
                       value={whatsapp}
                       onChange={(e) => setWhatsapp(e.target.value.replace(/[^0-9]/g, ""))}
                       className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl pl-8 pr-4 py-2.5 text-slate-200 placeholder-slate-700 text-xs transition outline-none"
@@ -922,7 +975,7 @@ export default function Home() {
           <div className="flex items-center gap-6">
             <span>&copy; {new Date().getFullYear()} Mansi Diamond Agency. All rights reserved.</span>
             <a 
-              href="https://wa.me/919876543210" 
+              href="https://wa.me/918957309392" 
               target="_blank" 
               rel="noreferrer" 
               className="flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 transition duration-200"

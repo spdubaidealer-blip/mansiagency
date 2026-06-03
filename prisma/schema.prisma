@@ -42,15 +42,15 @@ model Order {
   screenshotUrl     String?
   status            String   @default("Pending") // "Pending", "Completed"
   createdAt         DateTime @default(now())
-  userEmail         String?  // Link to User email
+  userWhatsapp      String?  // Link to User whatsapp
 }
 
 model User {
-  id         Int       @id @default(autoincrement())
-  email      String    @unique
-  otp        String?
-  otpExpiry  DateTime?
-  isVerified Boolean   @default(false)
-  createdAt  DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  whatsapp  String   @unique
+  name      String
+  password  String   // SHA-256 hashed password
+  createdAt DateTime @default(now())
 }
+
 

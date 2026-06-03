@@ -9,19 +9,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ authenticated: false });
     }
 
-    const email = sessionCookie.value;
+    const whatsapp = sessionCookie.value;
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { whatsapp },
     });
 
-    if (!user || !user.isVerified) {
+    if (!user) {
       return NextResponse.json({ authenticated: false });
     }
 
     return NextResponse.json({
       authenticated: true,
-      email: user.email,
+      name: user.name,
+      whatsapp: user.whatsapp,
     });
   } catch (error) {
     return NextResponse.json({ authenticated: false, error: "Internal server error" });
