@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const crypto = require('crypto');
 
 async function main() {
   console.log('Seeding database...');
@@ -11,13 +12,17 @@ async function main() {
   await prisma.announcement.deleteMany({});
 
   // Seed Admin credentials
+  const adminPassword = 'Mansi_Admin_Secure_9988#';
+  const hashedPassword = crypto.createHash('sha256').update(adminPassword).digest('hex');
+
   await prisma.admin.create({
     data: {
-      username: 'admin',
-      password: 'admin123',
+      username: 'mansi_admin',
+      password: hashedPassword,
     },
   });
-  console.log('Seeded Admin: admin / admin123');
+  console.log('Seeded Admin: mansi_admin / Mansi_Admin_Secure_9988# (Hashed)');
+
 
   // Seed Chamet rates
   const rates = [

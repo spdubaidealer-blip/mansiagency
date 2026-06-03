@@ -42,4 +42,15 @@ model Order {
   screenshotUrl     String?
   status            String   @default("Pending") // "Pending", "Completed"
   createdAt         DateTime @default(now())
+  userEmail         String?  // Link to User email
 }
+
+model User {
+  id         Int       @id @default(autoincrement())
+  email      String    @unique
+  otp        String?
+  otpExpiry  DateTime?
+  isVerified Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+}
+

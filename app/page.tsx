@@ -39,6 +39,15 @@ export default function Home() {
   // Navigation states
   const [activeNav, setActiveNav] = useState("home");
   
+  // User Authentication States
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [testMailUrl, setTestMailUrl] = useState<string | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
   // Checkout Form States
   const [whatsapp, setWhatsapp] = useState("");
   const [chametId, setChametId] = useState("");
@@ -66,15 +75,21 @@ export default function Home() {
     { label: "Fast Delivery", val: "5-15 Mins" }
   ];
 
-  // Fetch rate packages, settings, and active announcements
+  // Fetch session, rates, settings, and announcements
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [ratesRes, settingsRes, announcementRes] = await Promise.all([
+        const [sessionRes, ratesRes, settingsRes, announcementRes] = await Promise.all([
+          axios.get("/api/auth/check"),
           axios.get("/api/rates"),
           axios.get("/api/settings"),
           axios.get("/api/announcements")
         ]);
+        
+        if (sessionRes.data.authenticated) {
+          setUserEmail(sessionRes.data.email);
+        }
+        
         setPackages(ratesRes.data);
         setSettings(settingsRes.data);
         if (announcementRes.data && announcementRes.data.isActive) {
@@ -82,6 +97,8 @@ export default function Home() {
         }
       } catch (err) {
         toast.error("Error loading application data");
+      } finally {
+        setCheckingAuth(false);
       }
     };
     fetchData();
@@ -137,9 +154,69 @@ export default function Home() {
     toast.success(`${title} copied to clipboard!`);
   };
 
+  // OTP handlers
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authEmail.trim()) {
+      return toast.error("Gmail address is required!");
+    }
+    if (!authEmail.trim().toLowerCase().endsWith("@gmail.com")) {
+      return toast.error("Only Gmail (@gmail.com) addresses are allowed!");
+    }
+
+    setAuthLoading(true);
+    setTestMailUrl(null);
+    try {
+      const res = await axios.post("/api/auth/send-otp", { email: authEmail });
+      toast.success(res.data.message);
+      setOtpSent(true);
+      if (res.data.previewUrl) {
+        setTestMailUrl(res.data.previewUrl);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Failed to send OTP. Try again.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp.trim() || otp.trim().length !== 6) {
+      return toast.error("Please enter a 6-digit OTP code.");
+    }
+
+    setAuthLoading(true);
+    try {
+      const res = await axios.post("/api/auth/verify-otp", { email: authEmail, otp });
+      toast.success("Login successful!");
+      setUserEmail(res.data.email);
+      setOtp("");
+      setOtpSent(false);
+      setTestMailUrl(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "OTP verification failed.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleUserLogout = async () => {
+    try {
+      await axios.post("/api/auth/logout");
+      setUserEmail(null);
+      toast.success("Logged out successfully.");
+    } catch (err) {
+      toast.error("Logout failed.");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!userEmail) {
+      return toast.error("Please log in with Gmail first!");
+    }
     if (!whatsapp.trim()) {
       return toast.error("WhatsApp number is required!");
     }
@@ -419,7 +496,12 @@ export default function Home() {
         </div>
 
         {/* Success message card */}
-        {orderSuccess ? (
+        {checkingAuth ? (
+          <div className="bg-[#0b1021]/50 backdrop-blur-md border border-slate-800/80 rounded-3xl p-10 flex flex-col items-center gap-3 max-w-md mx-auto shadow-2xl">
+            <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+            <span className="text-xs text-slate-400 font-semibold tracking-wider uppercase animate-pulse">Checking Session...</span>
+          </div>
+        ) : orderSuccess ? (
           <div className="bg-[#0b1b24]/80 backdrop-blur-md border border-emerald-500/20 rounded-3xl p-8 text-center space-y-5 shadow-xl">
             <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8" />
@@ -430,59 +512,148 @@ export default function Home() {
               Top-up will complete inside 5-15 minutes.
             </p>
             <div className="bg-slate-950/80 border border-slate-900 rounded-2xl p-4 max-w-sm mx-auto text-left space-y-2.5 text-xs">
+              <div className="flex justify-between"><span className="text-slate-400">Customer Gmail</span><span className="text-white font-bold">{userEmail}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Chamet User ID</span><span className="text-white font-bold">{orderSuccess.chametId}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">WhatsApp Contact</span><span className="text-white font-bold">+{orderSuccess.whatsapp}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Order Status</span><span className="text-cyan-400 font-bold uppercase">{orderSuccess.status}</span></div>
             </div>
             <button
               onClick={() => setOrderSuccess(null)}
-              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold py-3 px-6 rounded-xl transition duration-200 uppercase tracking-wider"
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold py-3 px-6 rounded-xl transition duration-200 uppercase tracking-wider cursor-pointer"
             >
               Place Another Order
             </button>
+          </div>
+        ) : !userEmail ? (
+          <div className="bg-[#0b1021]/50 backdrop-blur-md border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-6 max-w-md mx-auto relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-violet-600/10 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center mx-auto shadow-lg shadow-violet-500/20">
+                <ShieldCheck className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-heading font-black text-white">Gmail Verification</h3>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                Verify your Gmail ID to proceed with your top-up order. Safe, secure, and instant.
+              </p>
+            </div>
+
+            {!otpSent ? (
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <div>
+                  <label htmlFor="authEmail" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Gmail Address</label>
+                  <input
+                    type="email"
+                    id="authEmail"
+                    placeholder="yourname@gmail.com"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-sm transition outline-none"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-850 disabled:to-slate-850 text-white font-extrabold text-xs py-3.5 rounded-xl shadow-lg shadow-violet-600/10 hover:shadow-violet-600/20 border border-violet-500/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider font-semibold"
+                >
+                  {authLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Sending OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send 6-Digit OTP</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div className="bg-violet-950/20 border border-violet-900/40 rounded-xl p-3 text-[11px] text-violet-300 text-center leading-relaxed">
+                  OTP code has been sent to <span className="font-bold text-white block">{authEmail}</span> Please enter it below.
+                </div>
+                
+                <div>
+                  <label htmlFor="otp" className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">6-Digit OTP Code</label>
+                  <input
+                    type="text"
+                    id="otp"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ""))}
+                    className="w-full bg-slate-950 border border-slate-900 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 rounded-xl px-4 py-3 text-slate-200 placeholder-slate-700 text-lg font-mono font-bold tracking-[8px] text-center transition outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOtpSent(false)}
+                    className="px-4 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white font-bold text-xs rounded-xl transition duration-200 shrink-0 cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={authLoading}
+                    className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-850 disabled:to-slate-850 text-white font-extrabold text-xs py-3.5 rounded-xl shadow-lg shadow-violet-600/10 hover:shadow-violet-600/20 border border-violet-500/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer uppercase tracking-wider"
+                  >
+                    {authLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <span>Verify & Access Checkout</span>
+                    )}
+                  </button>
+                </div>
+
+                {testMailUrl && (
+                  <div className="pt-2 text-center">
+                    <a
+                      href={testMailUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[11px] text-cyan-400 hover:text-cyan-300 font-extrabold hover:underline"
+                    >
+                      <span>Open Ethereal Test Inbox ✉️</span>
+                    </a>
+                  </div>
+                )}
+              </form>
+            )}
           </div>
         ) : (
           /* Checkout Form */
           <form onSubmit={handleSubmit} className="bg-[#0b1021]/50 backdrop-blur-md border border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8">
             
-            {/* Step 1: Chamet App Selection */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-black">1</span>
-                <h3 className="text-base font-extrabold text-white uppercase tracking-wider">Select Platform</h3>
+            {/* Logged In Info Banner */}
+            <div className="flex flex-col sm:flex-row items-center justify-between bg-violet-950/20 border border-violet-900/30 rounded-2xl p-4 gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-slate-300 font-medium">Logged in as:</span>
+                <span className="text-white font-bold">{userEmail}</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="relative border border-violet-500 bg-violet-600/5 rounded-2xl p-5 flex items-center justify-between group shadow-lg shadow-violet-500/5 select-none">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-cyan-500 flex items-center justify-center">
-                      <Coins className="w-5.5 h-5.5 text-white" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-extrabold text-white block">Chamet Top-Up</span>
-                      <span className="text-[10px] text-violet-400 font-bold uppercase tracking-wider">Instant Service</span>
-                    </div>
-                  </div>
-                  <div className="w-4 h-4 rounded-full border-4 border-violet-400 bg-slate-950" />
-                </div>
-                <div className="border border-slate-900 bg-slate-950/20 opacity-40 rounded-2xl p-5 flex items-center justify-between cursor-not-allowed">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-900 text-slate-500 flex items-center justify-center">
-                      <Lock className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-slate-500 block">Ola Party / Other</span>
-                      <span className="text-[10px] text-slate-600 uppercase font-semibold">Coming Soon</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={handleUserLogout}
+                className="text-violet-400 hover:text-violet-300 font-bold hover:underline cursor-pointer"
+              >
+                Change Gmail Account / Logout
+              </button>
             </div>
 
-            {/* Step 2: Coin Package selection */}
+            {/* Step 1: Coin Package selection */}
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-3">
                 <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-black">2</span>
+                  <span className="w-6 h-6 rounded bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-black">1</span>
                   <h3 className="text-base font-extrabold text-white uppercase tracking-wider">Select Coin Package</h3>
                 </div>
                 
@@ -548,10 +719,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Step 3: Account Info */}
+            {/* Step 2: Account Info */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-black">3</span>
+                <span className="w-6 h-6 rounded bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-black">2</span>
                 <h3 className="text-base font-extrabold text-white uppercase tracking-wider">Chamet ID & Contact</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -585,10 +756,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Step 4: Payment Details */}
+            {/* Step 3: Payment Details */}
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-black">4</span>
+                <span className="w-6 h-6 rounded bg-violet-600/20 text-violet-400 flex items-center justify-center text-xs font-black">3</span>
                 <h3 className="text-base font-extrabold text-white uppercase tracking-wider">Payment Instructions</h3>
               </div>
 

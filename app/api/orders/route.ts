@@ -23,9 +23,21 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/orders - Create a new order (Public)
+// POST /api/orders - Create a new order (Public, requires Gmail OTP verification)
 export async function POST(request: NextRequest) {
   try {
+    const userSession = request.cookies.get("user_session")?.value;
+    if (!userSession) {
+      return NextResponse.json({ error: "Unauthorized. Please login with Gmail first." }, { status: 401 });
+    }
+
+    const verifiedUser = await prisma.user.findUnique({
+      where: { email: userSession },
+    });
+    if (!verifiedUser || !verifiedUser.isVerified) {
+      return NextResponse.json({ error: "Unauthorized. Please request a new OTP." }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const whatsapp = formData.get("whatsapp") as string;
     const chametId = formData.get("chametId") as string;
@@ -55,6 +67,7 @@ export async function POST(request: NextRequest) {
         currency,
         selectedPackageId: parseInt(selectedPackageId),
         screenshotUrl,
+        userEmail: userSession,
         status: "Pending",
       },
     });

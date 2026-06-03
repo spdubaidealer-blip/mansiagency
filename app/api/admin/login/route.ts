@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +10,12 @@ export async function POST(request: NextRequest) {
       where: { username },
     });
 
-    if (!admin || admin.password !== password) {
+    if (!admin) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+    if (admin.password !== hashedPassword) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
